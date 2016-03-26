@@ -206,6 +206,7 @@ or called stop in a level 'upper' than start was called.");
       }
       break;
     }
+#ifdef LUA_HOOKTAILCALL
     /* push call onto stack and, in case of alloc, update function */
     case LUA_HOOKTAILCALL:
       if (lmprof_stack_equal(st->mem_stack, st->alloc_count)) {
@@ -222,6 +223,7 @@ or called stop in a level 'upper' than start was called.");
       }
       lmprof_stack_push(st->mem_stack, st->alloc_count);
       break;
+#endif
   }
   st->increment_alloc_count = 1;  /* enable alloc count */
 }
@@ -394,7 +396,11 @@ static const luaL_Reg lmprof[] = {
 
 /* register luamemprofiler functions */
 LUALIB_API int luaopen_lmprof (lua_State *L) {
+#if LUA_VERSION_NUM < 502
+  luaL_register(L, "lmprof", lmprof);
+#else
   luaL_newlib(L, lmprof);
+#endif
   return 1;
 }
 

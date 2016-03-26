@@ -28,10 +28,29 @@ static int findfield (lua_State *L, int objidx, int level) {
   return 0;  /* not found */
 }
 
+#if LUA_VERSION_NUM < 502
+static int lua_absindex (lua_State *L, int i) {
+  if (i < 0 && i > LUA_REGISTRYINDEX)
+    i += lua_gettop(L) + 1;
+  return i;
+}
+
+static void lua_copy (lua_State *L, int from, int to) {
+  int abs_to = lua_absindex(L, to);
+  luaL_checkstack(L, 1, "not enough stack slots");
+  lua_pushvalue(L, from);
+  lua_replace(L, abs_to);
+}
+#endif
+
 static int pushglobalfuncname (lua_State *L, lua_Debug *ar) {
   int top = lua_gettop(L);
   lua_getinfo(L, "f", ar);  /* push function */
+#if LUA_VERSION_NUM < 502
+  lua_pushvalue(L, LUA_GLOBALSINDEX);
+#else
   lua_pushglobaltable(L);
+#endif
   if (findfield(L, top + 1, 2)) {
     lua_copy(L, -1, top + 1);  /* move name to proper place */
     lua_pop(L, 2);  /* remove pushed values */
@@ -101,8 +120,10 @@ const char* lmprof_lstrace_gettracefuncinfo (lua_State *L, lua_Debug *ar) {
     lua_pushfstring(L, "%d:", ar->currentline);
   lua_pushliteral(L, " in ");
   pushfuncname(L, ar);
+#ifdef LUA_HOOKTAILCALL
   if (ar->istailcall) 
     lua_pushliteral(L, "(...tail calls...)");
+#endif
   lua_concat(L, lua_gettop(L) - top);
   funcinfo = lua_tostring(L, -1); /* do not pop the string - only after use */
   return funcinfo;
